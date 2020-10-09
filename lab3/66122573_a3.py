@@ -2,6 +2,7 @@ from socket import *
 import sys
 import time
 import os
+from os import path
 
 def main():
     machine = ''
@@ -34,33 +35,65 @@ def open_conn(PORT,server):
 def get(sock, filename, server_flag):
     # TODO: Figure out implementation
     directory = './server/' if server_flag else './client/'
-    path = directory+filename
+    file_path = directory+filename
+    destination = 'server' if not server_flag else 'client'
+    if path.exists(file_path):
+        if server_flag:
+            sock.sendall('exists')
+            response = ''
+            while response!='y' or response!='n':
+                response=sock.recv(1024).encode('utf-8')
+        else:
+            choice = ''
+            while choice!='y' and choice!='n':
+                choice = input(filename + ' already exists on the ' + destination + ', would you like to overwrite this file?').lower()
+            if choice=='n':
+                print('No file transferred')
+                return
     try:
         data = sock.recv(1024)
         if data.decode('utf-8')=='NA':
             raise IOError
         elif data.decode('utf-8')=='ok':
-            while data!='':
+            while True:
                 data = sock.recv(1024)
-                with open(path,'wb') as f:
+                if data==None or data=='' or not data:
+                    break
+
+                with open(file_path,'ab') as f:
                     f.write(data)
-            print(filename,'received from','server' if not server_flag else 'client')
+            print(filename,'received from',destination)
+        else:
+            print('Nothing happened')
     except IOError:
         print('Error writing',filename,'to disk')
 
 def put(sock, filename, server_flag):
     # TODO: Figure out implementation
     directory = './server/' if server_flag else './client/'
-    path = directory+filename
+    file_path = directory+filename
+    destination = 'server' if not server_flag else 'client'
+    # TODO: Fix implementation for if file exists
+    # hint: easy way would be to create a new file if it exists
+    # why didn't i do it that way from the start...
     try:
-        with open(path,'rb') as f:
+        with open(file_path,'rb') as f:
             read_data = f.read()
             sock.sendall('ok'.encode('utf-8'))
             sock.sendall(read_data)
-        print(filename,'uploaded to','server' if not server_flag else 'client')
+        print(filename,'uploaded to',destination)
     except FileNotFoundError:
         print('ERROR:',filename,'not found!')
         sock.sendall('NA'.encode('utf-8'))
+
+def overwrite(sock, filename, destination,server_flag):
+    if(server_flag):
+        response = sock.recv(1024).decode('utf-8')
+        if response=='exists':
+            choice = input(filename + ' already exists on the ' + destination)
+    else:
+        print('poop')
+
 
 def close(sock):
     # TODO: Is this all I need here?
@@ -117,6 +150,7 @@ def client():
     connected = False
     sock = None
     commands = ['open','get','put','close','quit']
+    # TODO: send command within functions instead of here
     while command.lower()!='quit':
         data = input('Please input command (type [HELP] for a list of commands): ')
         command = data.split(' ',1)[0].lower()
