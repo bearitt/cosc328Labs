@@ -1,8 +1,7 @@
 from socket import *
 import sys
 import time
-
-FILE_TRANSFER_PORT = 65535
+import os
 
 def main():
     machine = ''
@@ -23,49 +22,45 @@ def open_conn(PORT,server):
         print('Server listening on port ' + str(PORT))
         sock.listen()
     else:
-        print('Client connected to server on port ' + str(PORT))
-        sock.connect((HOST,PORT))
+        try:
+            sock.connect((HOST,PORT))
+            print('Client connected to server on port ' + str(PORT))
+        except OSError:
+            print('No connections available on that port!')
+            return None
     return sock
 
 
 def get(sock, filename, server_flag):
     # TODO: Figure out implementation
-    print('Get',filename)
     directory = './server/' if server_flag else './client/'
     path = directory+filename
-    file_sock = open_conn(FILE_TRANSFER_PORT,True)
-    print(path)
-    while True:
-        if file_sock.recv(1024).decode('utf-8') == 'start':
-            try:
+    try:
+        data = sock.recv(1024)
+        if data.decode('utf-8')=='NA':
+            raise IOError
+        elif data.decode('utf-8')=='ok':
+            while data!='':
+                data = sock.recv(1024)
                 with open(path,'wb') as f:
-                    data = file_sock.recv(1024)
-                    if data.decode('utf-8')=='quit':
-                        close(file_sock)
-                        break
-                    else:
-                        read_data = f.write(data.decode())
-            except IOError:
-                print('Error writing',filename,'to disk')
-                break
+                    f.write(data)
+            print(filename,'received from','server' if not server_flag else 'client')
+    except IOError:
+        print('Error writing',filename,'to disk')
 
 def put(sock, filename, server_flag):
     # TODO: Figure out implementation
-    print('Put',filename)
     directory = './server/' if server_flag else './client/'
     path = directory+filename
-    file_sock = open_conn(FILE_TRANSFER_PORT,False)
-    print(path)
     try:
-        file_sock.sendall('start'.encode('utf-8'))
         with open(path,'rb') as f:
             read_data = f.read()
-            file_sock.sendall(read_data.encode())
+            sock.sendall('ok'.encode('utf-8'))
+            sock.sendall(read_data)
+        print(filename,'uploaded to','server' if not server_flag else 'client')
     except FileNotFoundError:
         print('ERROR:',filename,'not found!')
-    finally:
-        file_sock.sendall('quit'.encode('utf-8'))
-        close(file_sock)
+        sock.sendall('NA'.encode('utf-8'))
 
 def close(sock):
     # TODO: Is this all I need here?
@@ -78,6 +73,11 @@ def quit():
     sys.exit(0)
 
 def server():
+    try:
+        os.makedirs('server', exist_ok=False)
+        print('Server directory successfully created')
+    except OSError:
+        print('Server directory already exists')
     server_flag = True
     command = ''
     while command.lower()!='open':
@@ -94,27 +94,35 @@ def server():
         command = data.split(' ', 1)[0]
         if command == 'open' or command == 'help':
             continue
-        elif command == 'close':
+        elif command == 'close' or command == 'quit':
             close(sock)
             quit()
         if command == 'get' or command == 'put':
             flag = data.split(' ',1)[1]
             if command == 'get':
-                put(sock,flag,server_flag)
+                put(conn,flag,server_flag)
             elif command == 'put':
-                get(sock,flag,server_flag)
+                get(conn,flag,server_flag)
     close(sock)
     quit()
 
 def client():
+    try:
+        os.makedirs('client', exist_ok=False)
+        print('Client directory successfully created')
+    except OSError:
+        print('Client directory already exists')
     server_flag = False
     command = ''
     connected = False
     sock = None
+    commands = ['open','get','put','close','quit']
     while command.lower()!='quit':
         data = input('Please input command (type [HELP] for a list of commands): ')
         command = data.split(' ',1)[0].lower()
-
+        if command not in commands:
+            print('Invalid selection, please try again!')
+            continue
         if connected:
             sock.sendall(data.encode('utf-8'))
 
@@ -126,8 +134,12 @@ def client():
             quit()
         elif command.lower()=='open':
             flag = data.split(' ',1)[1].lower()
-            connected = True
+            check = port_check(flag)
+            if not check:
+                print('Please input a numeric port between 1024 and 65535 inclusive')
+                continue
             sock = open_conn(int(flag),False)
+            connected = True if sock != None else False
         elif connected:
             if command.lower()=='close':
                 connected = False
@@ -140,8 +152,10 @@ def client():
                     put(sock,flag,server_flag)
         elif not connected:
             print('You must connect to a server before using ',command)
-        else:
-            print('Invalid selection, try again!')
+
+def port_check(flag):
+    port_range = range(1023)
+    return flag.isdigit() and (flag not in port_range)
 
 def help():
     print('''
