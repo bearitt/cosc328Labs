@@ -1,4 +1,4 @@
-from graphStuff import *
+from graphStuffUndirected import *
 from random import random
 from random import choice
 import heapdict as heapdict # you will need to install heapdict to use this
@@ -23,7 +23,7 @@ def randomGraph(n,p,wts=[1]):
         for w in V:
             if v != w:
                 if random() < p:
-                    G.addDiEdge(v,w,wt=choice(wts))
+                    G.addEdge(v,w,wt=choice(wts))
     return G
 
 # Dijkstra's algorithm for shortest paths
@@ -46,7 +46,7 @@ def dijkstraDumb(w,G):
             # then there is nothing more that I can reach
             return
         # update u's neighbors
-        for v,wt in u.getOutNeighborsWithWeights():
+        for v,wt in u.getNeighborsWithWeights():
             if u.estD + wt < v.estD:
                 v.estD = u.estD + wt
                 v.parent = u
@@ -70,10 +70,39 @@ def dijkstraDumb_shortestPaths(w,G):
         print([ str(x) for x in path ])
 
 # test on a random graph
-print("testing dijkstraDumb_shortestPaths on a random graph with 5 nodes")
-G = randomGraph(5,.2)
+# print("testing dijkstraDumb_shortestPaths on a random graph with 5 nodes")
+# G = randomGraph(5,.2)
+print("testing dijkstraDumb_shortestPaths on a graph with 5 nodes from lecture notes")
+# Part A
+def generateA():
+    G = Graph()
+    V = [ Vertex(x) for x in range(5) ]
+    for v in V:
+        G.addVertex(v)
+    G.addEdge(V[0], V[1], 2)
+    G.addEdge(V[0], V[2], 4)
+    G.addEdge(V[0], V[3], 1)
+    G.addEdge(V[1], V[2], 1)
+    G.addEdge(V[1], V[4], 9)
+    G.addEdge(V[1], V[3], 6)
+    G.addEdge(V[2], V[3], 4)
+    G.addEdge(V[3], V[4], 2)
+    return G
+def generateB():
+    G = Graph()
+    V = [ Vertex(x) for x in range(5) ]
+    for v in V:
+        G.addVertex(v)
+    G.addEdge(V[0], V[1], 1)
+    G.addEdge(V[0], V[3], 2)
+    G.addEdge(V[1], V[2], 3)
+    G.addEdge(V[1], V[4], 6)
+    G.addEdge(V[2], V[3], 3)
+    G.addEdge(V[2], V[4], 2)
+    return G
+G = generateB()
 print(G)
-dijkstraDumb_shortestPaths(G.vertices[0], G)
+dijkstraDumb_shortestPaths(G.vertices[4], G)
 
 # now let's try this with a heap
 def dijkstra(w,G):
@@ -90,7 +119,7 @@ def dijkstra(w,G):
             # then there is nothing more that I can reach
             return
         # update u's neighbors
-        for v,wt in u.getOutNeighborsWithWeights():
+        for v,wt in u.getNeighborsWithWeights():
             if u.estD + wt < v.estD:
                 v.estD = u.estD + wt
                 unsureVertices[v] = u.estD + wt #update the key in the heapdict
@@ -114,10 +143,11 @@ def dijkstra_shortestPaths(w,G):
         print([ str(x) for x in path ])
 
 # test on a random graph
-G = randomGraph(5,.4,[1,2,3,4,5])
-print("testing dijkstra_shortestPaths on a random graph with 5 nodes")
+# G = randomGraph(5,.4,[1,2,3,4,5])
+# print("testing dijkstra_shortestPaths on a random graph with 5 nodes")
+print("testing dijkstra_shortestPaths on a graph with 5 nodes from class")
 print(G)
-dijkstra_shortestPaths(G.vertices[0], G)
+dijkstra_shortestPaths(G.vertices[4], G)
 
 # generate a bunch of random graphs and run an alg to compute shortest paths (implicitly)  
 def runTrials(myFn, nVals, pFn, numTrials=25):
